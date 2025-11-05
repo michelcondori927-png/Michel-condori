@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
+  <title>Hello, World!</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <!-- Barra de navegación -->
+  <nav>
+    <button class="nav-btn active" data-view="habits">Hábitos</button>
+    <button class="nav-btn" data-view="progress">Progreso</button>
+    <button class="nav-btn" data-view="info">Información</button>
+    <button class="nav-btn" data-view="profile">Perfil</button>
+  </nav>
+
+  <!-- Contenido dinámico -->
+  <main id="main"></main>
+
+  <!-- Botón flotante -->
+  <button id="addHabitBtn">+</button>
+  
+</div>
+  <script>/* ---------------- DATOS BASE ---------------- */
+const CATEGORIES = {
+  mental: ["Meditación 5 min","Diario 2 min","Reducir redes sociales"],
+  food: ["Agua al despertar","Evitar azúcar","Desayuno saludable"],
+  edu: ["Leer 10 min","Resumen de video","Practicar habilidad"],
+  fitness: ["Caminar 15 min","Estiramientos","HIIT 5 min"]
+};
+
+let data = JSON.parse(localStorage.getItem("appData")) || {
+  name: null,
+  habits: [],
+  progress: {},   // progress[habit] = ["YYYY-MM-DD"]
+  notes: {}       // notes[habit] = text
+};
+
+const main = document.getElementById("main");
+
+/* ---------------- GUARDAR ---------------- */
+function save(){ localStorage.setItem("appData", JSON.stringify(data)); }
+
+/* ---------------- VISTAS ---------------- */
+showHabits();
+
+/* Barra navegación */
+document.querySelectorAll(".nav-btn").forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    if(btn.dataset.view==="habits") showHabits();
+    if(btn.dataset.view==="progress") showProgress();
+    if(btn.dataset.view==="info") showInfo();
+    if(btn.dataset.view==="profile") showProfile();
+  };
+});
+
+/* ---------------- HABITOS ---------------- */
+function showHabits(){
+  if(!data.name){ return showSetup(); }
+
+  main.innerHTML = "<h2>Tus Hábitos</h2>";
+  data.habits.forEach(h=>{
+    main.innerHTML += `<div class="card">${h}</div>`;
+  });
+}
+
+/* Panel agregar */
+document.getElementById("addHabitBtn").onclick = ()=>{
+  const panel = document.createElement("div");
+  panel.id="habitPanel";
+
+  panel.innerHTML = `<button onclick="this.parentNode.remove()">Cerrar</button>`;
+
+  for(let cat in CATEGORIES){
+    panel.innerHTML += `<div class="category-title">${cat.toUpperCase()}</div>`;
+    CATEGORIES[cat].forEach(h=>{
+      if(!data.habits.includes(h)){
+        panel.innerHTML += `<button onclick="addHabit('${h}')">${h}</button><br>`;
+      }
+    });
+  }
+
+  document.body.appendChild(panel);
+  setTimeout(()=>panel.classList.add("show"),10);
+};
+
+function addHabit(h){
+  data.habits.push(h);
+  save();
+  showHabits();
+  document.getElementById("habitPanel").remove();
+}
+
+/* ---------------- PROGRESO ---------------- */
+function showProgress(){
+  main.innerHTML = "<h2>Progreso</h2>";
+  data.habits.forEach(h=>{
+    const done = data.progress[h] || [];
+    const pct = Math.round((done.length / 7)*100);
+
+    main.innerHTML += `
+    <div class="card">
+      <strong>${h}</strong><br>
+      <div class="progress-week">
+      ${getLast7Days().map(d=>`<span class="${done.includes(d)?"done":""}"></span>`).join("")}
+      </div>
+      <p>${pct}% esta semana</p>
+      <button onclick="mark('${h}')">Marcar Hoy</button>
+    </div>`;
+  });
+
+  main.innerHTML += `<h3>Calendario</h3><div class="calendar" id="cal"></div>`;
+  renderCalendar();
+}
+
+function mark(h){
+  const today = new Date().toISOString().slice(0,10);
+  if(!data.progress[h]) data.progress[h]=[];
+  if(!data.progress[h].includes(today)) data.progress[h].push(today);
+  save();
+  showProgress();
+}
+
+function getLast7Days(){
+  let arr = [];
+  for(let i=6;i>=0;i--){
+    let d = new Date();
+    d.setDate(d.getDate()-i);
+    arr.push(d.toISOString().slice(0,10));
+  }
+  return arr;
+}
+
+function renderCalendar(){
+  const cal = document.getElementById("cal");
+  cal.innerHTML="";
+  const now = new Date();
+  const year=now.getFullYear();
+  const month=now.getMonth();
+  const days = new Date(year,month+1,0).getDate();
+  for(let i=1;i<=days;i++){
+    let d = `${year}-${String(month+1).padStart(2,"0")}-${String(i).padStart(2,"0")}`;
+    const done = Object.values(data.progress).some(arr=>arr.includes(d));
+    cal.innerHTML += `<div class="${done?"done":""}">${i}</div>`;
+  }
+}
+
+/* ---------------- INFORMACIÓN ---------------- */
+/* ---------------- INFORMACIÓN ---------------- */
+function showInfo(){
+  main.innerHTML = "<h2>Información</h2>";
+  
+  main.innerHTML += `<p>
+1. ¿Qué es un hábito?
+
+Un hábito es una acción que repites tan seguido que tu cerebro la convierte en algo automático.
+Ejemplo: cepillarte los dientes sin pensarlo mucho.
+
+
+<br>
+
+2. ¿Cómo se crea un hábito?
+
+Los hábitos se forman con la fórmula:
+Señal → Acción → Recompensa
+
+Señal: algo que te recuerda hacerlo
+
+Acción: lo que haces
+
+Recompensa: cómo te sientes después (esto hace que quieras repetirlo)
+<br>
+3. ¿Cómo empezar un hábito?
+
+Empieza muy pequeño.
+Tan pequeño que sea imposible fallar.
+
+Ejemplo: no digas “leer 1 hora”.
+Di: “Leer 2 páginas”.
+<br>
+4. ¿Cómo desarrollar el hábito?
+
+Aumenta la dificultad poco a poco.
+
+Ejemplo:
+Semana 1: 2 páginas
+Semana 2: 5 páginas
+Semana 3: 10 páginas
+<br>
+5. ¿Cómo mantener el hábito?
+
+Usa estas claves:
+
+Hazlo a la misma hora
+
+Conéctalo con otra actividad (por ejemplo, después de desayunar → leo)
+
+No busques perfección, busca constancia
+
+
+Incluso 1 minuto cuenta.
+  </p>`; 
+  
+  if (data.habits.length === 0) {
+    main.innerHTML += "<p>Añade algunos hábitos para escribir notas sobre ellos.</p>";
+    return;
+  }
+  
+  data.habits.forEach(h=>{
+    const note = data.notes[h] || "";
+    main.innerHTML += `
+    <div class="card">
+      <strong>${h}</strong><br>
+      <textarea oninput="saveNote('${h}',this.value)" placeholder="Notas...">${note}</textarea>
+    </div>`;
+  });
+}
+
+/* ---------------- PERFIL ---------------- */
+function showProfile(){
+  main.innerHTML = `
+  <h2>Perfil</h2>
+  <p><strong>Nombre:</strong> ${data.name}</p>
+  <button onclick="resetAll()">Reiniciar Todo</button>`;
+}
+
+function resetAll(){
+  if(confirm("Esto borrará todo tu progreso.")){
+    localStorage.removeItem("appData");
+    location.reload();
+  }
+}
+
+/* ---------------- Javascript ---------------- */
+function showSetup(){
+  main.innerHTML = `
+    <h2>Bienvenido</h2>
+    <input id="nameInput" placeholder="Tu nombre">
+    <p>Elige hábitos iniciales:</p>
+  `;
+
+  for(let cat in CATEGORIES){
+    main.innerHTML += `<div class="category-title">${cat.toUpperCase()}</div>`;
+    CATEGORIES[cat].forEach(h=>{
+      main.innerHTML += `<label><input type="checkbox" value="${h}">${h}</label><br>`;
+    });
+  }
+
+  main.innerHTML += `<button onclick="finishSetup()">Comenzar</button>`;
+}
+
+function finishSetup(){
+  const name=document.getElementById("nameInput").value.trim();
+  if(!name) return alert("Escribe tu nombre");
+  const selects=[...document.querySelectorAll("input[type=checkbox]:checked")].map(x=>x.value);
+  if(selects.length===0) return alert("Elige al menos un hábito");
+  data.name=name; data.habits=selects; save(); showHabits();
+}</script>
+</body>
+</html>
